@@ -1,0 +1,8 @@
+streamlit
+pandas
+sqlite3
+os
+csv
+datetime
+urllib.parse 
+quote_plus
