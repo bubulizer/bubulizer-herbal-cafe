@@ -13,10 +13,8 @@ APP_NAME = "BUBULIZER Herbal Café"
 PRIMARY_COLOR = "#14532d"   # deep herbal green
 ACCENT_COLOR = "#f59e0b"    # warm gold
 
-SHEET_NAME = "BUBULIZER"    # Google Sheet name you created
-
-# Replace this with your real WhatsApp business number, e.g. "2567XXXXXXXX"
-WHATSAPP_NUMBER = "2348023808592"
+SHEET_NAME = "BUBULIZER"    # Google Sheet name
+WHATSAPP_NUMBER = "2348023808592"  # Nigeria format
 
 st.set_page_config(
     page_title=APP_NAME,
@@ -24,6 +22,9 @@ st.set_page_config(
     layout="centered"
 )
 
+# =========================
+# GLOBAL STYLING
+# =========================
 st.markdown(
     f"""
     <style>
@@ -81,12 +82,11 @@ def get_orders_worksheet():
         ])
     return ws
 
+
 def save_order_to_sheet(customer_name, phone, order_type, notes, total_amount, cart_df):
-    """Append order rows to Google Sheet and return order_id, timestamp."""
     ws = get_orders_worksheet()
-    # simple order_id = current number of orders (row count - header)
-    row_count = len(ws.get_all_values())  # includes header
-    order_id = row_count  # first order will be 1
+    row_count = len(ws.get_all_values())
+    order_id = row_count
     timestamp = datetime.now().isoformat(timespec="seconds")
 
     for _, row in cart_df.iterrows():
@@ -106,8 +106,8 @@ def save_order_to_sheet(customer_name, phone, order_type, notes, total_amount, c
 
     return order_id, timestamp
 
+
 def load_orders_df():
-    """Load all orders from Google Sheet into a DataFrame."""
     ws = get_orders_worksheet()
     records = ws.get_all_records()
     if not records:
@@ -115,10 +115,12 @@ def load_orders_df():
     return pd.DataFrame(records)
 
 # =========================
-# WHATSAPP LINK
+# WHATSAPP MESSAGE BUILDER
 # =========================
+
 def generate_whatsapp_link(order_id, customer_name, phone, order_type,
                            total_amount, timestamp, cart_df, notes=""):
+
     lines = []
     lines.append(f"{APP_NAME} Order")
     lines.append(f"Order ID: {order_id}")
@@ -130,57 +132,61 @@ def generate_whatsapp_link(order_id, customer_name, phone, order_type,
         lines.append(f"Notes: {notes}")
     lines.append("")
     lines.append("Items:")
+
     for _, row in cart_df.iterrows():
-        lines.append(f"- {int(row['Qty'])} × {row['Name']} = {int(row['Total']):,} NGN")
+        lines.append(f"- {row['Qty']} × {row['Name']} = {row['Total']:,} NGN")
+
     lines.append("")
     lines.append(f"TOTAL: {total_amount:,} NGN")
 
-    message = "\n".join(lines)
-    encoded = quote_plus(message)
+    encoded = quote_plus("\n".join(lines))
     return f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded}"
 
 # =========================
-# MENU DATA (customisable)
+# MENU DATA — NOW IN NGN
 # =========================
+
 menu_items = [
-    ("Herbal Tea", "Lemongrass Detox Tea",     "Fresh lemongrass, ginger, honey.",         6000),
-    ("Herbal Tea", "Moringa Immune Booster",   "Moringa leaves, lemon, organic honey.",   7000),
-    ("Herbal Tea", "Hibiscus Heart Tonic",     "Dried hibiscus, clove, cinnamon.",        6500),
-    ("Smoothie",   "Tropical Energy Smoothie", "Pineapple, mango, ginger, chia seeds.",   9000),
-    ("Smoothie",   "Green Gut Health Smoothie","Spinach, avocado, apple, flaxseed.",      9500),
-    ("Smoothie",   "Banana Peanut Power",      "Banana, peanut, oats, soy milk.",         8500),
-    ("Juice",      "Beetroot Liver Cleanse",   "Beetroot, carrot, apple, lemon.",         8000),
-    ("Juice",      "Carrot Skin Glow",         "Carrot, orange, turmeric.",               7500),
-    ("Snack",      "Millet & Sesame Energy Balls (3)", "Millet, sesame, dates, coconut.", 5000),
-    ("Snack",      "Herbal Sweet Potato Fries","Oven-baked, rosemary & thyme.",           6000),
+    ("Herbal Tea", "Lemongrass Detox Tea",     "Fresh lemongrass, ginger, honey.",         1500),
+    ("Herbal Tea", "Moringa Immune Booster",   "Moringa, lemon, honey.",                  1800),
+    ("Herbal Tea", "Hibiscus Heart Tonic",     "Hibiscus, clove, cinnamon.",              1700),
+    ("Smoothie",   "Tropical Energy Smoothie", "Pineapple, mango, ginger, chia.",         2500),
+    ("Smoothie",   "Green Gut Health Smoothie","Spinach, avocado, apple, flaxseed.",      3000),
+    ("Smoothie",   "Banana Peanut Power",      "Banana, peanut, oats, soy milk.",         2200),
+    ("Juice",      "Beetroot Liver Cleanse",   "Beetroot, carrot, apple, lemon.",         2000),
+    ("Juice",      "Carrot Skin Glow",         "Carrot, orange, turmeric.",               1800),
+    ("Snack",      "Millet & Sesame Energy Balls (3)", "Millet, sesame, dates.",          1200),
+    ("Snack",      "Herbal Sweet Potato Fries","Oven-baked with rosemary.",                1500),
 ]
-menu_df = pd.DataFrame(menu_items, columns=["Category", "Name", "Description", "Price_UGX"])
+
+menu_df = pd.DataFrame(menu_items, columns=["Category", "Name", "Description", "Price_NGN"])
 
 # =========================
-# SESSION STATE (CART)
+# CART MANAGEMENT
 # =========================
+
 if "cart" not in st.session_state:
     st.session_state.cart = []
 
 def add_to_cart(item_name, qty):
-    if qty <= 0:
-        return
     row = menu_df[menu_df["Name"] == item_name].iloc[0]
     price = row["Price_NGN"]
-    category = row["Category"]
+
+    # Check if item already exists
     for item in st.session_state.cart:
         if item["Name"] == item_name:
             item["Qty"] += qty
             item["Total"] = item["Qty"] * item["Price_NGN"]
-            break
-    else:
-        st.session_state.cart.append({
-            "Category": category,
-            "Name": item_name,
-            "Price_NGN": price,
-            "Qty": qty,
-            "Total": qty * price
-        })
+            return
+
+    # Add new item
+    st.session_state.cart.append({
+        "Category": row["Category"],
+        "Name": item_name,
+        "Price_NGN": price,
+        "Qty": qty,
+        "Total": qty * price
+    })
 
 def clear_cart():
     st.session_state.cart = []
@@ -191,27 +197,27 @@ def cart_to_df():
     return pd.DataFrame(st.session_state.cart)
 
 # =========================
-# SIDEBAR NAV
+# SIDEBAR NAVIGATION
 # =========================
+
 with st.sidebar:
     st.markdown(f"<h3 class='bub-title'>{APP_NAME}</h3>", unsafe_allow_html=True)
     page = st.radio("Navigate", ["Home", "Menu & Order", "Order Summary", "Admin (Sheet View)", "About"])
     st.markdown("---")
-    st.caption("BUBULIZER v2 • Streamlit + Google Sheets + WhatsApp")
+    st.caption("BUBULIZER • NGN Edition • Streamlit + Google Sheets + WhatsApp")
 
 # =========================
 # PAGES
 # =========================
+
 if page == "Home":
     st.markdown(f"<h1 class='bub-title'>🍵 {APP_NAME}</h1>", unsafe_allow_html=True)
-    st.subheader("Herbal wellness, engineered properly.")
+    st.subheader("Nigeria Edition — Powered by Natural Wellness.")
     st.write(
         """
-        This is the cloud-ready version of the **BUBULIZER Herbal Café** app.
-
-        - Orders are stored in a secure Google Sheet (`BUBULIZER`).  
-        - You can review all orders from the Admin page.  
-        - Customers can confirm and send orders to WhatsApp with one tap.
+        - All prices displayed in **NGN (₦)**  
+        - Orders automatically logged into Google Sheets  
+        - One-tap WhatsApp order confirmation  
         """
     )
 
@@ -222,29 +228,25 @@ elif page == "Menu & Order":
     selected_cat = st.selectbox("Filter by category", categories)
 
     filtered_df = menu_df if selected_cat == "All" else menu_df[menu_df["Category"] == selected_cat]
-    st.subheader("Menu")
-    st.dataframe(filtered_df[["Category", "Name", "Description", "Price_UGX"]], use_container_width=True)
+    st.dataframe(filtered_df, use_container_width=True)
 
-    st.markdown("### Add Items to Cart")
+    st.subheader("Add Items to Cart")
     item_name = st.selectbox("Select item", filtered_df["Name"].tolist())
-    qty = st.number_input("Quantity", min_value=1, max_value=20, value=1, step=1)
+    qty = st.number_input("Quantity", min_value=1, max_value=20, value=1)
 
     if st.button("➕ Add to cart"):
         add_to_cart(item_name, qty)
-        st.success(f"Added {qty} × {item_name} to your cart.")
+        st.success(f"Added {qty} × {item_name} to cart.")
 
-    st.markdown("### Your Cart")
+    st.subheader("Your Cart")
     cart_df = cart_to_df()
+
     if cart_df.empty:
         st.warning("Your cart is empty.")
     else:
-        cart_df_display = cart_df.copy()
-        cart_df_display["Price_NGN"] = cart_df_display["Price_NGN"].astype(int)
-        cart_df_display["Total"] = cart_df_display["Total"].astype(int)
-        st.dataframe(cart_df_display, use_container_width=True)
-
+        st.dataframe(cart_df, use_container_width=True)
         total_amount = int(cart_df["Total"].sum())
-        st.subheader(f"Estimated Total: {total_amount:,} UGX")
+        st.subheader(f"Estimated Total: ₦{total_amount:,}")
 
         if st.button("🧹 Clear cart"):
             clear_cart()
@@ -255,71 +257,43 @@ elif page == "Order Summary":
 
     cart_df = cart_to_df()
     if cart_df.empty:
-        st.warning("Your cart is empty. Add items from **Menu & Order**.")
+        st.warning("Your cart is empty.")
     else:
-        cart_df_display = cart_df.copy()
-        cart_df_display["Price_NGN"] = cart_df_display["Price_NGN"].astype(int)
-        cart_df_display["Total"] = cart_df_display["Total"].astype(int)
+        st.dataframe(cart_df, use_container_width=True)
         total_amount = int(cart_df["Total"].sum())
+        st.subheader(f"Order Total: ₦{total_amount:,}")
 
-        st.subheader("Your Cart")
-        st.dataframe(cart_df_display, use_container_width=True)
-        st.subheader(f"Order Total: {total_amount:,} NGN)
-
-        st.markdown("### Your Details")
         with st.form("checkout_form"):
             customer_name = st.text_input("Full Name")
             phone = st.text_input("Phone / WhatsApp")
-            order_type = st.selectbox("Order Type", ["Pickup at Café", "Delivery (within city)"])
-            notes = st.text_area("Notes (allergies, sweetness, etc.)", height=80)
+            order_type = st.selectbox("Order Type", ["Pickup at Café", "Delivery"])
+            notes = st.text_area("Notes", height=80)
             submitted = st.form_submit_button("✅ Confirm Order")
 
         if submitted:
             if not customer_name or not phone:
-                st.error("Name and phone are required.")
+                st.error("Name and phone required.")
             else:
                 order_id, timestamp = save_order_to_sheet(
-                    customer_name, phone, order_type, notes, total_amount, cart_df_display
+                    customer_name, phone, order_type, notes, total_amount, cart_df
                 )
+
                 wa_link = generate_whatsapp_link(
                     order_id, customer_name, phone, order_type,
-                    total_amount, timestamp, cart_df_display, notes
+                    total_amount, timestamp, cart_df, notes
                 )
 
-                st.success(f"Order #{order_id} saved to Google Sheets.")
-                st.markdown("#### Receipt")
-                st.write(f"**Order ID:** {order_id}")
-                st.write(f"**Time:** {timestamp}")
-                st.write(f"**Name:** {customer_name}")
-                st.write(f"**Phone:** {phone}")
-                st.write(f"**Order Type:** {order_type}")
-                if notes:
-                    st.write(f"**Notes:** {notes}")
-                st.write("---")
-                st.dataframe(cart_df_display[["Name", "Qty", "Total"]], use_container_width=True)
-                st.write(f"**Total:** {total_amount:,} NGN")
-
-                if "XXXX" not in WHATSAPP_NUMBER:
-                    st.markdown(f"[📲 Send order via WhatsApp]({wa_link})")
-                    st.info("Tap the link above on your phone to open WhatsApp with the order pre-filled.")
-                else:
-                    st.warning("Set WHATSAPP_NUMBER in the code to enable WhatsApp integration.")
+                st.success(f"Order #{order_id} saved!")
+                st.markdown(f"[📲 Send order via WhatsApp]({wa_link})")
 
 elif page == "Admin (Sheet View)":
-    st.title("🛠 Admin – Orders from Google Sheet")
+    st.title("🛠 Admin — Orders from Google Sheet")
     try:
         df = load_orders_df()
-        if df.empty:
-            st.info("No orders yet.")
-        else:
-            st.dataframe(df, use_container_width=True)
+        st.dataframe(df, use_container_width=True)
     except Exception as e:
-        st.error(f"Could not load data from Google Sheets: {e}")
+        st.error(f"Could not load data: {e}")
 
 elif page == "About":
-    st.title("ℹ️ About BUBULIZER: Wellness & Flavor")
-    st.write(
-        """
-        BUBULIZER serves as the digital order management platform for a select line of **authentic Herbal Teas, Spices, and Traditional Beverages**. Our products are sourced and prepared using a unique blend of natural, powerful ingredients.
-        """
-    )
+    st.title("ℹ️ About BUBULIZER")
+    st.write("Powered by natural herbs. Built with Streamlit, Python, and Google Sheets.")
