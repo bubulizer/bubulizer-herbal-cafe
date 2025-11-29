@@ -75,9 +75,9 @@ def get_orders_worksheet():
             "notes",
             "item_name",
             "qty",
-            "price_ugx",
-            "line_total_ugx",
-            "order_total_ugx"
+            "price_ngn",
+            "line_total_ngn",
+            "order_total_ngn"
         ])
     return ws
 
@@ -99,7 +99,7 @@ def save_order_to_sheet(customer_name, phone, order_type, notes, total_amount, c
             notes,
             row["Name"],
             int(row["Qty"]),
-            int(row["Price_UGX"]),
+            int(row["Price_NGN"]),
             int(row["Total"]),
             int(total_amount)
         ])
@@ -131,9 +131,9 @@ def generate_whatsapp_link(order_id, customer_name, phone, order_type,
     lines.append("")
     lines.append("Items:")
     for _, row in cart_df.iterrows():
-        lines.append(f"- {int(row['Qty'])} × {row['Name']} = {int(row['Total']):,} UGX")
+        lines.append(f"- {int(row['Qty'])} × {row['Name']} = {int(row['Total']):,} NGN")
     lines.append("")
-    lines.append(f"TOTAL: {total_amount:,} UGX")
+    lines.append(f"TOTAL: {total_amount:,} NGN")
 
     message = "\n".join(lines)
     encoded = quote_plus(message)
@@ -166,18 +166,18 @@ def add_to_cart(item_name, qty):
     if qty <= 0:
         return
     row = menu_df[menu_df["Name"] == item_name].iloc[0]
-    price = row["Price_UGX"]
+    price = row["Price_NGN"]
     category = row["Category"]
     for item in st.session_state.cart:
         if item["Name"] == item_name:
             item["Qty"] += qty
-            item["Total"] = item["Qty"] * item["Price_UGX"]
+            item["Total"] = item["Qty"] * item["Price_NGN"]
             break
     else:
         st.session_state.cart.append({
             "Category": category,
             "Name": item_name,
-            "Price_UGX": price,
+            "Price_NGN": price,
             "Qty": qty,
             "Total": qty * price
         })
@@ -187,7 +187,7 @@ def clear_cart():
 
 def cart_to_df():
     if not st.session_state.cart:
-        return pd.DataFrame(columns=["Category", "Name", "Price_UGX", "Qty", "Total"])
+        return pd.DataFrame(columns=["Category", "Name", "Price_NGN", "Qty", "Total"])
     return pd.DataFrame(st.session_state.cart)
 
 # =========================
@@ -239,7 +239,7 @@ elif page == "Menu & Order":
         st.warning("Your cart is empty.")
     else:
         cart_df_display = cart_df.copy()
-        cart_df_display["Price_UGX"] = cart_df_display["Price_UGX"].astype(int)
+        cart_df_display["Price_NGN"] = cart_df_display["Price_NGN"].astype(int)
         cart_df_display["Total"] = cart_df_display["Total"].astype(int)
         st.dataframe(cart_df_display, use_container_width=True)
 
@@ -258,13 +258,13 @@ elif page == "Order Summary":
         st.warning("Your cart is empty. Add items from **Menu & Order**.")
     else:
         cart_df_display = cart_df.copy()
-        cart_df_display["Price_UGX"] = cart_df_display["Price_UGX"].astype(int)
+        cart_df_display["Price_NGN"] = cart_df_display["Price_NGN"].astype(int)
         cart_df_display["Total"] = cart_df_display["Total"].astype(int)
         total_amount = int(cart_df["Total"].sum())
 
         st.subheader("Your Cart")
         st.dataframe(cart_df_display, use_container_width=True)
-        st.subheader(f"Order Total: {total_amount:,} UGX")
+        st.subheader(f"Order Total: {total_amount:,} NGN)
 
         st.markdown("### Your Details")
         with st.form("checkout_form"):
@@ -297,7 +297,7 @@ elif page == "Order Summary":
                     st.write(f"**Notes:** {notes}")
                 st.write("---")
                 st.dataframe(cart_df_display[["Name", "Qty", "Total"]], use_container_width=True)
-                st.write(f"**Total:** {total_amount:,} UGX")
+                st.write(f"**Total:** {total_amount:,} NGN")
 
                 if "XXXX" not in WHATSAPP_NUMBER:
                     st.markdown(f"[📲 Send order via WhatsApp]({wa_link})")
@@ -317,14 +317,9 @@ elif page == "Admin (Sheet View)":
         st.error(f"Could not load data from Google Sheets: {e}")
 
 elif page == "About":
-    st.title("ℹ️ About BUBULIZER v2")
+    st.title("ℹ️ About BUBULIZER: Wellness & Flavor")
     st.write(
         """
-        - UI: Streamlit  
-        - Storage: Google Sheets (`BUBULIZER` → `Orders` worksheet)  
-        - Orders: WhatsApp deep link for confirmation  
-        - Hosting: Streamlit Community Cloud  
-
-        This avoids SQLite and local files so it runs safely on Streamlit Cloud.
+        BUBULIZER serves as the digital order management platform for a select line of **authentic Herbal Teas, Spices, and Traditional Beverages**. Our products are sourced and prepared using a unique blend of natural, powerful ingredients.
         """
     )
