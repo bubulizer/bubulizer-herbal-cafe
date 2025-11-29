@@ -13,8 +13,17 @@ APP_NAME = "BUBULIZER Herbal Café"
 PRIMARY_COLOR = "#14532d"   # deep herbal green
 ACCENT_COLOR = "#f59e0b"    # warm gold
 
-SHEET_NAME = "BUBULIZER"    # Google Sheet name
-WHATSAPP_NUMBER = "2348023808592"  # Nigeria format
+SHEET_NAME = "BUBULIZER"
+WHATSAPP_NUMBER = "2348023808592"  # Nigeria
+LOGO_PATH = "static/bubulizer_logo.png"  # put your logo here or set to None
+
+# Simple, demo-level user store (NOT for real security)
+USERS = {
+    "admin": "bubulizer_admin",
+    "cashier": "bubulizer_pos",
+}
+
+DELIVERY_FEE_NGN = 800  # flat fee for delivery orders (tune to taste)
 
 st.set_page_config(
     page_title=APP_NAME,
@@ -37,6 +46,13 @@ st.markdown(
     .bub-accent {{
         color: {ACCENT_COLOR};
     }}
+    .menu-card {{
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        background-color: #ffffff;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }}
     </style>
     """,
     unsafe_allow_html=True
@@ -48,7 +64,6 @@ st.markdown(
 
 @st.cache_resource
 def get_gsheet_client():
-    """Create a gspread client from Streamlit secrets."""
     creds_info = st.secrets["gcp_service_account"]
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -60,7 +75,6 @@ def get_gsheet_client():
 
 @st.cache_resource
 def get_orders_worksheet():
-    """Open or create the 'Orders' worksheet inside the BUBULIZER sheet."""
     client = get_gsheet_client()
     sh = client.open(SHEET_NAME)
     try:
@@ -82,11 +96,14 @@ def get_orders_worksheet():
         ])
     return ws
 
-
 def save_order_to_sheet(customer_name, phone, order_type, notes, total_amount, cart_df):
+    """
+    Append order rows to Google Sheet and return order_id, timestamp.
+    Delivery fee + address, if any, are encoded inside 'notes'.
+    """
     ws = get_orders_worksheet()
-    row_count = len(ws.get_all_values())
-    order_id = row_count
+    row_count = len(ws.get_all_values())  # includes header
+    order_id = row_count  # first order will be 1
     timestamp = datetime.now().isoformat(timespec="seconds")
 
     for _, row in cart_df.iterrows():
@@ -106,7 +123,6 @@ def save_order_to_sheet(customer_name, phone, order_type, notes, total_amount, c
 
     return order_id, timestamp
 
-
 def load_orders_df():
     ws = get_orders_worksheet()
     records = ws.get_all_records()
@@ -115,12 +131,11 @@ def load_orders_df():
     return pd.DataFrame(records)
 
 # =========================
-# WHATSAPP MESSAGE BUILDER
+# WHATSAPP & MAPS
 # =========================
 
 def generate_whatsapp_link(order_id, customer_name, phone, order_type,
                            total_amount, timestamp, cart_df, notes=""):
-
     lines = []
     lines.append(f"{APP_NAME} Order")
     lines.append(f"Order ID: {order_id}")
@@ -132,34 +147,71 @@ def generate_whatsapp_link(order_id, customer_name, phone, order_type,
         lines.append(f"Notes: {notes}")
     lines.append("")
     lines.append("Items:")
-
     for _, row in cart_df.iterrows():
         lines.append(f"- {row['Qty']} × {row['Name']} = {row['Total']:,} NGN")
-
     lines.append("")
     lines.append(f"TOTAL: {total_amount:,} NGN")
 
     encoded = quote_plus("\n".join(lines))
     return f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded}"
 
+def build_maps_link(address: str) -> str:
+    if not address.strip():
+        return ""
+    encoded = quote_plus(address)
+    return f"https://www.google.com/maps/search/?api=1&query={encoded}"
+
 # =========================
-# MENU DATA — NOW IN NGN
+# MENU DATA — NGN + IMAGES
 # =========================
 
 menu_items = [
-    ("Herbal Tea", "Lemongrass Detox Tea",     "Fresh lemongrass, ginger, honey.",         1500),
-    ("Herbal Tea", "Moringa Immune Booster",   "Moringa, lemon, honey.",                  1800),
-    ("Herbal Tea", "Hibiscus Heart Tonic",     "Hibiscus, clove, cinnamon.",              1700),
-    ("Smoothie",   "Tropical Energy Smoothie", "Pineapple, mango, ginger, chia.",         2500),
-    ("Smoothie",   "Green Gut Health Smoothie","Spinach, avocado, apple, flaxseed.",      3000),
-    ("Smoothie",   "Banana Peanut Power",      "Banana, peanut, oats, soy milk.",         2200),
-    ("Juice",      "Beetroot Liver Cleanse",   "Beetroot, carrot, apple, lemon.",         2000),
-    ("Juice",      "Carrot Skin Glow",         "Carrot, orange, turmeric.",               1800),
-    ("Snack",      "Millet & Sesame Energy Balls (3)", "Millet, sesame, dates.",          1200),
-    ("Snack",      "Herbal Sweet Potato Fries","Oven-baked with rosemary.",                1500),
+    # category, name, description, price_ngn, image_url
+    ("Herbal Tea", "Lemongrass Detox Tea",
+     "Fresh lemongrass, ginger, honey.", 1500,
+     "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=600&q=80"),
+
+    ("Herbal Tea", "Moringa Immune Booster",
+     "Moringa, lemon, honey.", 1800,
+     "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=600&q=80"),
+
+    ("Herbal Tea", "Hibiscus Heart Tonic",
+     "Hibiscus, clove, cinnamon.", 1700,
+     "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=600&q=80"),
+
+    ("Smoothie", "Tropical Energy Smoothie",
+     "Pineapple, mango, ginger, chia.", 2500,
+     "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=600&q=80"),
+
+    ("Smoothie", "Green Gut Health Smoothie",
+     "Spinach, avocado, apple, flaxseed.", 3000,
+     "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=600&q=80"),
+
+    ("Smoothie", "Banana Peanut Power",
+     "Banana, peanut, oats, soy milk.", 2200,
+     "https://images.unsplash.com/photo-1523365280197-f21d6e76fc99?auto=format&fit=crop&w=600&q=80"),
+
+    ("Juice", "Beetroot Liver Cleanse",
+     "Beetroot, carrot, apple, lemon.", 2000,
+     "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=600&q=80"),
+
+    ("Juice", "Carrot Skin Glow",
+     "Carrot, orange, turmeric.", 1800,
+     "https://images.unsplash.com/photo-1588167865096-71c620227d92?auto=format&fit=crop&w=600&q=80"),
+
+    ("Snack", "Millet & Sesame Energy Balls (3)",
+     "Millet, sesame, dates.", 1200,
+     "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=600&q=80"),
+
+    ("Snack", "Herbal Sweet Potato Fries",
+     "Oven-baked with rosemary.", 1500,
+     "https://images.unsplash.com/photo-1588167865096-71c620227d92?auto=format&fit=crop&w=600&q=80"),
 ]
 
-menu_df = pd.DataFrame(menu_items, columns=["Category", "Name", "Description", "Price_NGN"])
+menu_df = pd.DataFrame(
+    menu_items,
+    columns=["Category", "Name", "Description", "Price_NGN", "Image_URL"]
+)
 
 # =========================
 # CART MANAGEMENT
@@ -168,18 +220,17 @@ menu_df = pd.DataFrame(menu_items, columns=["Category", "Name", "Description", "
 if "cart" not in st.session_state:
     st.session_state.cart = []
 
+if "user" not in st.session_state:
+    st.session_state.user = None  # {"username": "..."} or None
+
 def add_to_cart(item_name, qty):
     row = menu_df[menu_df["Name"] == item_name].iloc[0]
     price = row["Price_NGN"]
-
-    # Check if item already exists
     for item in st.session_state.cart:
         if item["Name"] == item_name:
             item["Qty"] += qty
             item["Total"] = item["Qty"] * item["Price_NGN"]
             return
-
-    # Add new item
     st.session_state.cart.append({
         "Category": row["Category"],
         "Name": item_name,
@@ -197,29 +248,65 @@ def cart_to_df():
     return pd.DataFrame(st.session_state.cart)
 
 # =========================
+# LOGIN LOGIC (very simple)
+# =========================
+
+def login_widget():
+    if st.session_state.user:
+        st.write(f"Logged in as **{st.session_state.user['username']}**")
+        if st.button("Logout"):
+            st.session_state.user = None
+            st.experimental_rerun()
+    else:
+        with st.expander("🔐 Staff Login (Admin / POS)", expanded=False):
+            username = st.text_input("Username", key="login_user")
+            pw = st.text_input("Password", type="password", key="login_pw")
+            if st.button("Login"):
+                if username in USERS and USERS[username] == pw:
+                    st.session_state.user = {"username": username}
+                    st.success(f"Welcome, {username}.")
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid credentials.")
+
+# =========================
 # SIDEBAR NAVIGATION
 # =========================
 
 with st.sidebar:
+    if LOGO_PATH:
+        try:
+            st.image(LOGO_PATH, use_container_width=True)
+        except Exception:
+            pass
     st.markdown(f"<h3 class='bub-title'>{APP_NAME}</h3>", unsafe_allow_html=True)
-    page = st.radio("Navigate", ["Home", "Menu & Order", "Order Summary", "Admin (Sheet View)", "About"])
+    page = st.radio(
+        "Navigate",
+        ["Home", "Menu & Order", "Order Summary", "POS (In-House)", "Admin (Sheet View)", "About"]
+    )
     st.markdown("---")
+    login_widget()
     st.caption("BUBULIZER • NGN Edition • Streamlit + Google Sheets + WhatsApp")
 
 # =========================
-# PAGES
+# PAGE: HOME
 # =========================
 
 if page == "Home":
     st.markdown(f"<h1 class='bub-title'>🍵 {APP_NAME}</h1>", unsafe_allow_html=True)
-    st.subheader("Nigeria Edition — Powered by Natural Wellness.")
+    st.subheader("Nigeria Edition — Herbal wellness, engineered properly.")
     st.write(
         """
-        - All prices displayed in **NGN (₦)**  
-        - Orders automatically logged into Google Sheets  
-        - One-tap WhatsApp order confirmation  
+        - Browse the **Menu & Order** page for customer-facing orders  
+        - Use **Order Summary** for final confirmation and WhatsApp sending  
+        - Use **POS (In-House)** for walk-in customers at the counter  
+        - Use **Admin (Sheet View)** to see all logged orders from Google Sheets  
         """
     )
+
+# =========================
+# PAGE: MENU & ORDER (customer)
+# =========================
 
 elif page == "Menu & Order":
     st.title("📋 Menu & Order")
@@ -228,29 +315,41 @@ elif page == "Menu & Order":
     selected_cat = st.selectbox("Filter by category", categories)
 
     filtered_df = menu_df if selected_cat == "All" else menu_df[menu_df["Category"] == selected_cat]
-    st.dataframe(filtered_df, use_container_width=True)
 
-    st.subheader("Add Items to Cart")
-    item_name = st.selectbox("Select item", filtered_df["Name"].tolist())
-    qty = st.number_input("Quantity", min_value=1, max_value=20, value=1)
+    st.subheader("Menu")
+    # Show as cards with images
+    for _, row in filtered_df.iterrows():
+        with st.container():
+            cols = st.columns([1, 2])
+            with cols[0]:
+                if row["Image_URL"]:
+                    st.image(row["Image_URL"], use_container_width=True)
+            with cols[1]:
+                st.markdown(f"**{row['Name']}**")
+                st.caption(row["Description"])
+                st.markdown(f"**₦{int(row['Price_NGN']):,}**")
+                qty = st.number_input(
+                    f"Qty – {row['Name']}", min_value=1, max_value=20, value=1, key=f"qty_{row['Name']}"
+                )
+                if st.button(f"Add {row['Name']} to cart", key=f"btn_{row['Name']}"):
+                    add_to_cart(row["Name"], qty)
+                    st.success(f"Added {qty} × {row['Name']}")
 
-    if st.button("➕ Add to cart"):
-        add_to_cart(item_name, qty)
-        st.success(f"Added {qty} × {item_name} to cart.")
-
-    st.subheader("Your Cart")
+    st.markdown("### Your Cart")
     cart_df = cart_to_df()
-
     if cart_df.empty:
         st.warning("Your cart is empty.")
     else:
         st.dataframe(cart_df, use_container_width=True)
         total_amount = int(cart_df["Total"].sum())
-        st.subheader(f"Estimated Total: ₦{total_amount:,}")
-
+        st.subheader(f"Estimated Total (before delivery): ₦{total_amount:,}")
         if st.button("🧹 Clear cart"):
             clear_cart()
             st.info("Cart cleared.")
+
+# =========================
+# PAGE: ORDER SUMMARY (customer)
+# =========================
 
 elif page == "Order Summary":
     st.title("🧾 Order Summary & Checkout")
@@ -260,40 +359,148 @@ elif page == "Order Summary":
         st.warning("Your cart is empty.")
     else:
         st.dataframe(cart_df, use_container_width=True)
-        total_amount = int(cart_df["Total"].sum())
-        st.subheader(f"Order Total: ₦{total_amount:,}")
+        base_total = int(cart_df["Total"].sum())
 
+        st.subheader("Order Type & Delivery")
+        order_type = st.selectbox("Order Type", ["Pickup at Café", "Delivery"])
+        delivery_address = ""
+        delivery_fee = 0
+
+        if order_type == "Delivery":
+            delivery_address = st.text_area("Delivery Address (for Google Maps)", height=60)
+            delivery_fee = DELIVERY_FEE_NGN
+            st.info(f"Delivery fee: ₦{delivery_fee:,}")
+
+        grand_total = base_total + delivery_fee
+        st.subheader(f"Grand Total: ₦{grand_total:,}")
+
+        st.markdown("### Your Details")
         with st.form("checkout_form"):
             customer_name = st.text_input("Full Name")
             phone = st.text_input("Phone / WhatsApp")
-            order_type = st.selectbox("Order Type", ["Pickup at Café", "Delivery"])
-            notes = st.text_area("Notes", height=80)
+            extra_notes = st.text_area("Notes (allergies, sweetness, etc.)", height=80)
             submitted = st.form_submit_button("✅ Confirm Order")
 
         if submitted:
             if not customer_name or not phone:
                 st.error("Name and phone required.")
             else:
+                # Encode delivery details into notes string (so sheet schema remains stable)
+                notes_parts = []
+                if extra_notes:
+                    notes_parts.append(extra_notes)
+                if order_type == "Delivery":
+                    notes_parts.append(f"Delivery fee: ₦{delivery_fee:,}")
+                    if delivery_address:
+                        notes_parts.append(f"Address: {delivery_address}")
+                notes = " | ".join(notes_parts) if notes_parts else ""
+
                 order_id, timestamp = save_order_to_sheet(
-                    customer_name, phone, order_type, notes, total_amount, cart_df
+                    customer_name, phone, order_type, notes, grand_total, cart_df
                 )
 
                 wa_link = generate_whatsapp_link(
                     order_id, customer_name, phone, order_type,
-                    total_amount, timestamp, cart_df, notes
+                    grand_total, timestamp, cart_df, notes
                 )
 
                 st.success(f"Order #{order_id} saved!")
+                st.markdown("#### Receipt")
+                st.write(f"**Order ID:** {order_id}")
+                st.write(f"**Time:** {timestamp}")
+                st.write(f"**Name:** {customer_name}")
+                st.write(f"**Phone:** {phone}")
+                st.write(f"**Order Type:** {order_type}")
+                st.write(f"**Base Total:** ₦{base_total:,}")
+                st.write(f"**Delivery Fee:** ₦{delivery_fee:,}")
+                st.write(f"**Grand Total:** ₦{grand_total:,}")
+                if extra_notes:
+                    st.write(f"**Notes:** {extra_notes}")
+                if delivery_address:
+                    maps_link = build_maps_link(delivery_address)
+                    if maps_link:
+                        st.markdown(f"[📍 View delivery address in Google Maps]({maps_link})")
+
+                st.write("---")
+                st.dataframe(cart_df[["Name", "Qty", "Total"]], use_container_width=True)
+
                 st.markdown(f"[📲 Send order via WhatsApp]({wa_link})")
 
+# =========================
+# PAGE: POS (In-House) – staff only
+# =========================
+
+elif page == "POS (In-House)":
+    st.title("🧮 POS – In-House Orders")
+
+    if not st.session_state.user:
+        st.error("Staff login required to access POS.")
+    else:
+        st.write(f"Logged in as **{st.session_state.user['username']}**")
+
+        cart_df = cart_to_df()
+        st.subheader("Current POS Cart")
+        if cart_df.empty:
+            st.info("Cart is empty. Use Menu page or add POS-specific items here.")
+        else:
+            st.dataframe(cart_df, use_container_width=True)
+
+        base_total = int(cart_df["Total"].sum()) if not cart_df.empty else 0
+        st.subheader(f"Current Total: ₦{base_total:,}")
+
+        st.markdown("### POS Checkout")
+        with st.form("pos_form"):
+            customer_name = st.text_input("Customer Name (optional)", value="Walk-in")
+            phone = st.text_input("Phone (optional)", value="")
+            payment_method = st.selectbox("Payment Method", ["Cash", "Transfer", "Card"])
+            notes = st.text_area("POS Notes", height=60)
+            submitted = st.form_submit_button("💾 Save POS Order")
+
+        if submitted:
+            if cart_df.empty:
+                st.error("Cart is empty, cannot save POS order.")
+            else:
+                order_type = f"POS – {payment_method}"
+                order_id, timestamp = save_order_to_sheet(
+                    customer_name, phone, order_type, notes, base_total, cart_df
+                )
+                st.success(f"POS Order #{order_id} saved for {payment_method}.")
+                st.write(f"Time: {timestamp}")
+                st.write(f"Total: ₦{base_total:,}")
+                clear_cart()
+
+# =========================
+# PAGE: ADMIN – SHEET VIEW
+# =========================
+
 elif page == "Admin (Sheet View)":
-    st.title("🛠 Admin — Orders from Google Sheet")
-    try:
-        df = load_orders_df()
-        st.dataframe(df, use_container_width=True)
-    except Exception as e:
-        st.error(f"Could not load data: {e}")
+    st.title("🛠 Admin – Orders from Google Sheet")
+
+    if not st.session_state.user:
+        st.error("Staff login required to view admin data.")
+    else:
+        try:
+            df = load_orders_df()
+            if df.empty:
+                st.info("No orders yet.")
+            else:
+                st.dataframe(df, use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not load data: {e}")
+
+# =========================
+# PAGE: ABOUT
+# =========================
 
 elif page == "About":
     st.title("ℹ️ About BUBULIZER")
-    st.write("Powered by natural herbs. Built with Streamlit, Python, and Google Sheets.")
+    st.write(
+        """
+        **BUBULIZER Herbal Café** – digital ordering, POS, and WhatsApp workflow
+        built with:
+        - Streamlit (Python)
+        - Google Sheets (serverless datastore)
+        - WhatsApp deep links
+        - Lightweight POS mode for staff
+        """
+    )
