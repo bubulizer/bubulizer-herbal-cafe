@@ -162,50 +162,34 @@ def build_maps_link(address: str) -> str:
     return f"https://www.google.com/maps/search/?api=1&query={encoded}"
 
 # =========================
-# MENU DATA — NGN + IMAGES
+# MENU DATA — REAL BUBULIZER PRODUCTS (IMPORTED)
 # =========================
 
 menu_items = [
-    # category, name, description, price_ngn, image_url
-    ("Herbal Tea", "Lemongrass Detox Tea",
-     "Fresh lemongrass, ginger, honey.", 1500,
-     "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=600&q=80"),
+    ("Herbal Tea", "BUBULIZER Alcoholic Bitters",
+     "Herbal alcoholic bitters (200ml). 18+ Drink responsibly.",
+     1200,
+     "static/BUBULIZER_Alcoholic Bitters.jpeg"),
 
-    ("Herbal Tea", "Moringa Immune Booster",
-     "Moringa, lemon, honey.", 1800,
-     "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=600&q=80"),
+    ("Herbal Tea", "BUBULIZER Bridelia Tea",
+     "Bridelia tea – detox & immune support (50g).",
+     1500,
+     "static/BUBULIZER_Bridelia tea.jpeg"),
 
-    ("Herbal Tea", "Hibiscus Heart Tonic",
-     "Hibiscus, clove, cinnamon.", 1700,
-     "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=600&q=80"),
+    ("Herbal Tea", "BUBULIZER Small Leaf Tea",
+     "Small leaf (stone breaker) tea – kidney wellness (50g).",
+     1500,
+     "static/BUBULIZER_Small leaf.jpeg"),
 
-    ("Smoothie", "Tropical Energy Smoothie",
-     "Pineapple, mango, ginger, chia.", 2500,
-     "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=600&q=80"),
+    ("Spices", "BUBULIZER Banga Soup Spice",
+     "Nutmeg, guinea plum, scent leaves, liquorice mix – perfect for Banga soup.",
+     1000,
+     "static/BUBULIZER_Banga spice.jpeg"),
 
-    ("Smoothie", "Green Gut Health Smoothie",
-     "Spinach, avocado, apple, flaxseed.", 3000,
-     "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=600&q=80"),
-
-    ("Smoothie", "Banana Peanut Power",
-     "Banana, peanut, oats, soy milk.", 2200,
-     "https://images.unsplash.com/photo-1523365280197-f21d6e76fc99?auto=format&fit=crop&w=600&q=80"),
-
-    ("Juice", "Beetroot Liver Cleanse",
-     "Beetroot, carrot, apple, lemon.", 2000,
-     "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=600&q=80"),
-
-    ("Juice", "Carrot Skin Glow",
-     "Carrot, orange, turmeric.", 1800,
-     "https://images.unsplash.com/photo-1588167865096-71c620227d92?auto=format&fit=crop&w=600&q=80"),
-
-    ("Snack", "Millet & Sesame Energy Balls (3)",
-     "Millet, sesame, dates.", 1200,
-     "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=600&q=80"),
-
-    ("Snack", "Herbal Sweet Potato Fries",
-     "Oven-baked with rosemary.", 1500,
-     "https://images.unsplash.com/photo-1588167865096-71c620227d92?auto=format&fit=crop&w=600&q=80"),
+    ("Spices", "BUBULIZER Pepper Soup Spice",
+     "Calabash nutmeg, Aidan fruit, spice tree – for chicken, fish, beef.",
+     1000,
+     "static/BUBULIZER_Pepper soup spice.jpeg"),
 ]
 
 menu_df = pd.DataFrame(
