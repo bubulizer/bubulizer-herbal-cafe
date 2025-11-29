@@ -16,7 +16,7 @@ ACCENT_COLOR = "#f59e0b"    # warm gold
 SHEET_NAME = "BUBULIZER"    # Google Sheet name you created
 
 # Replace this with your real WhatsApp business number, e.g. "2567XXXXXXXX"
-WHATSAPP_NUMBER = "2567XXXXXXX"
+WHATSAPP_NUMBER = "2348023808592"
 
 st.set_page_config(
     page_title=APP_NAME,
@@ -197,7 +197,7 @@ with st.sidebar:
     st.markdown(f"<h3 class='bub-title'>{APP_NAME}</h3>", unsafe_allow_html=True)
     page = st.radio("Navigate", ["Home", "Menu & Order", "Order Summary", "Admin (Sheet View)", "About"])
     st.markdown("---")
-    st.caption("BUBULIZER v3 • Streamlit + Google Sheets + WhatsApp")
+    st.caption("BUBULIZER v2 • Streamlit + Google Sheets + WhatsApp")
 
 # =========================
 # PAGES
@@ -317,7 +317,7 @@ elif page == "Admin (Sheet View)":
         st.error(f"Could not load data from Google Sheets: {e}")
 
 elif page == "About":
-    st.title("ℹ️ About BUBULIZER v3")
+    st.title("ℹ️ About BUBULIZER v2")
     st.write(
         """
         - UI: Streamlit  
